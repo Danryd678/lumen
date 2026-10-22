@@ -1,1 +1,1 @@
-{"version":"1.3.0","notes":"Lumen v1.3 — Pollinations removed at your word. Images and video now run on the Grok engine; voice cover still writes itself from your prompt."}
+{"notes":"Lumen v1.4 — Your own API key system. Settings now takes your Lumen API address + your personal lumen_live_ key: the server checks your key, counts your daily limit, and calls the hidden engine. Voice-cover scripts can run through your API too.","version":"1.4.0"}

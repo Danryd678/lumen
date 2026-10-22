@@ -241,7 +241,13 @@ select.field{appearance:none}
       <label>App version</label>
       <div class="field" id="setVer" style="color:var(--dim)"></div>
       <button class="btn" id="updBtn" style="margin-top:12px">↻ Check for updates</button>
-      <label>Creation engine (Grok)</label>
+      <label>Your Lumen API</label>
+      <input class="field" id="setApiUrl" placeholder="API address, e.g. https://lumen-api…">
+      <input class="field" id="setApiKey" placeholder="Your lumen_live_… key" autocomplete="off">
+      <div class="hint" style="margin-top:8px">This is <b>your own API</b> — the key system you own. Paste the address of your Lumen API server and your personal <b>lumen_live_</b> key. The app sends the key with every creation; the server checks it, counts your daily limit, and calls the hidden engine. Your key is stored only on this phone.</div>
+      <button class="btn" id="apiCheckBtn" style="margin-top:10px">🔑 Check my key</button>
+      <div class="hint" id="apiCheckOut" style="margin-top:8px"></div>
+      <label>Creation engine (Grok, direct — optional)</label>
       <input class="field" id="setBackend" placeholder="Engine address (optional)">
       <div class="hint" style="margin-top:8px">Lumen creates images and video through its own Grok engine server. Until an engine address is set, creations are saved in Recent and Lumen tells you honestly that the engine isn't connected — nothing is faked.</div>
       <label>Your data</label>
@@ -315,7 +321,7 @@ select.field{appearance:none}
 
 <script>
 "use strict";
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const store = {
@@ -326,7 +332,7 @@ let settings = Object.assign({
   mode:"image", res:"720p", asp:"16:9", dur:10,
   voice:false, voiceScript:"",
   lockChar:false, charDesc:"", lockBg:false, bgDesc:"",
-  backend:""
+  backend:"", apiUrl:"", apiKey:""
 }, store.get("lumen.settings.v1", {}));
 let thread = store.get("lumen.thread.v1", []);
 let recents = store.get("lumen.recents.v1", []);
@@ -412,7 +418,23 @@ $("#voicePlay").onclick = async () => {
   settings.voiceScript = txt; saveAll();
   speak(txt);
 };
+/* ---------------- Lumen API (her own key system) ---------------- */
+function apiBase(){ return (settings.apiUrl || "").trim().replace(/\/$/, ""); }
+function apiConfigured(){ return !!(apiBase() && (settings.apiKey || "").trim()); }
+async function lumenApi(body){
+  const r = await fetch(apiBase() + "/v1/generate", { method:"POST",
+    headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + settings.apiKey.trim() },
+    body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  return { status: r.status, j };
+}
 async function writeVoiceScript(prompt, dur, charDesc){
+  if(apiConfigured()){
+    try{
+      const { status, j } = await lumenApi({ type:"script", prompt, duration: dur, charDesc: charDesc || "" });
+      if(status === 200 && j && j.text) return String(j.text).slice(0, 900);
+    }catch(e){}
+  }
   if(settings.backend){
     try{
       const r = await fetch(settings.backend, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ type:"script", prompt, duration: dur }) });
@@ -554,6 +576,17 @@ async function generate(i){
   const finalPrompt = buildFinalPrompt(m.prompt);
   if(m.mode === "image"){
     const [w, h] = SIZES[m.asp][m.res];
+    if(apiConfigured()){
+      lumenApi({ type:"image", prompt: finalPrompt, width: w, height: h, aspect: m.asp, resolution: m.res })
+        .then(({ status, j }) => {
+          if(status === 200 && j && (j.imageUrl || j.url)){ m.status = "done"; m.mediaUrl = j.imageUrl || j.url; library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts }); finishRecent(m, "done", m.mediaUrl); toast("Image ready 🖼"); }
+          else if(j && j.error === "no_engine_configured"){ m.status = "locked"; finishRecent(m, "draft"); }
+          else { m.status = "error"; m.error = (j && j.message) || "Your Lumen API did not accept that request. Check your key in Settings."; finishRecent(m, "failed"); }
+          saveAll(); renderThread();
+        })
+        .catch(() => { m.status = "error"; m.error = "Your Lumen API server didn't answer. Check the API address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
+      return;
+    }
     if(!settings.backend){
       setTimeout(() => { m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread(); }, 600);
       return;
@@ -574,6 +607,17 @@ async function generate(i){
     m.voiceScript = await writeVoiceScript(m.prompt, m.dur, m.lockChar ? settings.charDesc : "");
     m.voiceAuto = true;
     saveAll();
+  }
+  if(apiConfigured()){
+    lumenApi({ type:"video", prompt: finalPrompt, duration: m.dur, resolution: m.res, aspect: m.asp, voiceScript: m.voiceScript })
+      .then(({ status, j }) => {
+        if(status === 200 && j && (j.videoUrl || j.url)){ m.status = "done"; m.mediaUrl = j.videoUrl || j.url; finishRecent(m, "done"); toast("Video ready 🎬"); }
+        else if(j && j.error === "no_engine_configured"){ m.status = "locked"; finishRecent(m, "draft"); }
+        else { m.status = "error"; m.error = (j && j.message) || "Your Lumen API did not accept that request. Check your key in Settings."; finishRecent(m, "failed"); }
+        saveAll(); renderThread();
+      })
+      .catch(() => { m.status = "error"; m.error = "Your Lumen API server didn't answer. Check the API address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
+    return;
   }
   if(!settings.backend){
     m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread();
@@ -697,6 +741,21 @@ $("#setVer").textContent = "Lumen v" + APP_VERSION + " — feature updates arriv
 $("#verFoot").textContent = "Version " + APP_VERSION;
 $("#setBackend").value = settings.backend || "";
 $("#setBackend").addEventListener("change", e => { settings.backend = e.target.value.trim(); saveAll(); toast("Saved"); });
+$("#setApiUrl").value = settings.apiUrl || "";
+$("#setApiUrl").addEventListener("change", e => { settings.apiUrl = e.target.value.trim(); saveAll(); toast("API address saved"); });
+$("#setApiKey").value = settings.apiKey || "";
+$("#setApiKey").addEventListener("change", e => { settings.apiKey = e.target.value.trim(); saveAll(); toast("API key saved on this phone"); });
+$("#apiCheckBtn").onclick = async () => {
+  const out = $("#apiCheckOut");
+  if(!apiConfigured()){ out.textContent = "Add both the API address and your lumen_live_ key first."; return; }
+  out.textContent = "Checking your key…";
+  try{
+    const r = await fetch(apiBase() + "/v1/me", { headers:{ "Authorization":"Bearer " + settings.apiKey.trim() } });
+    const j = await r.json().catch(() => ({}));
+    if(r.status === 200) out.textContent = "✓ Key works — " + (j.name || "your key") + " · used " + j.usedToday + " of " + j.dailyLimit + " today.";
+    else out.textContent = "✕ " + ((j && j.message) || "That key was not accepted. Check you pasted the full key.");
+  }catch(e){ out.textContent = "✕ Couldn't reach your API server — check the address and your connection."; }
+};
 $("#clearBtn").onclick = () => { thread = []; recents = []; library = []; saveAll(); renderThread(); toast("Cleared"); };
 function checkUpdate(manual){
   if(!/^https?:/.test(location.protocol)){ if(manual) toast("Updates arrive when Lumen is connected online"); return; }
