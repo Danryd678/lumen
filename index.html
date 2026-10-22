@@ -286,11 +286,11 @@ select.field{appearance:none}
       </div>
 
       <div class="switch-row">
-        <div class="lab"><b>🎙 Voice cover</b><span>Add a spoken narration over the video.</span></div>
+        <div class="lab"><b>🎙 Voice cover</b><span>Lumen writes the narration from your prompt itself — you don't type anything.</span></div>
         <div class="sw" id="swVoice"></div>
       </div>
       <div id="voiceBox" style="display:none">
-        <textarea class="field" id="voiceScript" placeholder="Type what the voice should say…"></textarea>
+        <textarea class="field" id="voiceScript" placeholder="Leave empty — the words are written from your prompt automatically. Type here only if you want your own exact words."></textarea>
         <button class="btn" id="voicePlay" style="margin-top:9px">▶ Hear the voice cover</button>
       </div>
     </div>
@@ -319,7 +319,7 @@ select.field{appearance:none}
 
 <script>
 "use strict";
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const store = {
@@ -404,12 +404,31 @@ bindSwitch("#swVoice", "voice"); bindSwitch("#swChar", "lockChar"); bindSwitch("
 $("#voiceScript").addEventListener("change", e => { settings.voiceScript = e.target.value; saveAll(); });
 $("#charDesc").addEventListener("change", e => { settings.charDesc = e.target.value; saveAll(); });
 $("#bgDesc").addEventListener("change", e => { settings.bgDesc = e.target.value; saveAll(); });
-$("#voicePlay").onclick = () => {
-  const txt = $("#voiceScript").value.trim();
-  if(!txt){ toast("Type the voice cover words first"); return; }
+$("#voicePlay").onclick = async () => {
+  let txt = $("#voiceScript").value.trim();
+  if(!txt){
+    const p = pb.value.trim();
+    if(!p){ speak("This is how your voice cover will sound."); return; }
+    toast("Writing your voice cover…");
+    txt = await writeVoiceScript(p, settings.dur, settings.lockChar ? settings.charDesc : "");
+    $("#voiceScript").value = txt;
+  }
   settings.voiceScript = txt; saveAll();
   speak(txt);
 };
+async function writeVoiceScript(prompt, dur, charDesc){
+  const words = Math.max(12, Math.min(120, Math.round((+dur || 10) * 2.2)));
+  const instr = "Write ONLY the voice-over narration for a " + (dur || 10) + "-second video. At most " + words + " words. No quotes, no labels, no stage directions, just the spoken words. The video is about: " + prompt + (charDesc ? " The main character: " + charDesc + "." : "");
+  try{
+    const r = await fetch("https://text.pollinations.ai/" + encodeURIComponent(instr));
+    if(!r.ok) throw new Error("bad");
+    const t = (await r.text()).trim().replace(/\s+/g, " ").replace(/^["']+|["']+$/g, "");
+    if(t && t.length > 15) return t.slice(0, 900);
+    throw new Error("empty");
+  }catch(e){
+    return prompt;
+  }
+}
 function speak(txt){
   try{
     if(!("speechSynthesis" in window)){ toast("Voice preview isn't available on this phone"); return; }
@@ -472,11 +491,12 @@ function aiCard(m, i){
     ${m.lockBg ? `<span class="badge">🏞 Background kept</span>` : ""}
     ${m.voice ? `<span class="badge">🎙 Voice cover</span>` : ""}
   </div>`;
+  const voiceLine = m.voice && m.voiceScript ? `<div class="desc" style="margin-top:7px">🎙 ${m.voiceAuto ? "Voice cover — written for you from your prompt" : "Voice cover"}: “${esc(m.voiceScript)}”</div>` : "";
   if(m.status === "loading") return `<div class="result-card"><div class="loading"><div class="shimmer"></div><div class="t">Creating your ${m.mode === "video" ? "video" : "image"}… this can take a moment.</div></div><div class="result-body">${badges}</div></div>`;
   if(m.status === "locked") return `<div class="result-card"><div class="result-body">
     <div class="ttl">One free tap switches video on</div>
     <div class="locked" style="margin-top:9px">Lumen makes video with <b>Seedance</b> through Pollinations. Connect your free Pollinations account once — you approve a small Pollen budget on their screen — and video works. This creation is saved in <b>Recent</b> either way, and nothing was charged.</div>
-    ${badges}
+    ${badges}${voiceLine}
     <div class="row-btns"><button class="btn primary" data-connect="1">🌼 Connect Pollinations — free</button><button class="btn" data-again="${i}">✎ Edit prompt</button>${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Hear voice cover</button>` : ""}</div>
   </div></div>`;
   if(m.status === "error") return `<div class="result-card"><div class="result-body">
@@ -485,7 +505,7 @@ function aiCard(m, i){
     ${badges}
     <div class="row-btns"><button class="btn primary" data-retry="${i}">↻ Try again</button><button class="btn" data-again="${i}">✎ Edit prompt</button></div>
   </div></div>`;
-  if(m.mode === "video") return `<div class="result-card"><video ${m.blobUrl ? `src="${esc(m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with Seedance${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<a class="btn primary" data-dl="${m.ts}" ${m.blobUrl ? `href="${esc(m.blobUrl)}" download="lumen-video.mp4"` : ""} style="text-decoration:none">⬇ Download</a></div></div></div>`;
+  if(m.mode === "video") return `<div class="result-card"><video ${m.blobUrl ? `src="${esc(m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with Seedance${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<a class="btn primary" data-dl="${m.ts}" ${m.blobUrl ? `href="${esc(m.blobUrl)}" download="lumen-video.mp4"` : ""} style="text-decoration:none">⬇ Download</a></div></div></div>`;
   return `<div class="result-card"><img src="${esc(m.mediaUrl)}" alt=""><div class="result-body">
     <div class="ttl">Your image is ready</div>
     <div class="desc">Long-press the image to save it to your gallery, or open the Library.</div>
@@ -533,7 +553,7 @@ function finishRecent(m, status, thumb){
   if(r){ r.status = status; if(thumb) r.thumb = thumb; }
   saveAll();
 }
-function generate(i){
+async function generate(i){
   const m = thread[i]; if(!m) return;
   m.status = "loading"; saveAll(); renderThread();
   const finalPrompt = buildFinalPrompt(m.prompt);
@@ -551,6 +571,11 @@ function generate(i){
     return;
   }
   /* video — Seedance via Pollinations (user's own connected wallet) */
+  if(m.voice && !m.voiceScript){
+    m.voiceScript = await writeVoiceScript(m.prompt, m.dur, m.lockChar ? settings.charDesc : "");
+    m.voiceAuto = m.voiceScript !== m.prompt;
+    saveAll();
+  }
   const key = polliKey();
   if(!key){
     setTimeout(() => { m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread(); }, 600);
