@@ -1,1 +1,1 @@
-{"version":"1.2.0","notes":"Lumen v1.2 — voice cover now writes itself from your prompt. Turn on Voice cover, describe your video, done: the narration words are written for you and shown on the card."}
+{"version":"1.3.0","notes":"Lumen v1.3 — Pollinations removed at your word. Images and video now run on the Grok engine; voice cover still writes itself from your prompt."}
