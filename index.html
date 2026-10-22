@@ -162,7 +162,7 @@ select.field{appearance:none}
   <button class="menu-item" data-nav="library"><span class="ic">🖼️</span>My library<small id="libCount"></small></button>
   <button class="menu-item" data-nav="settings"><span class="ic">⚙️</span>Settings</button>
   <button class="menu-item" id="menuPrefs"><span class="ic">🎛️</span>Preferences</button>
-  <div class="drawer-foot">Images generate free with no account and no daily cap.<br>Video runs on Seedance — connect Pollinations free in Settings.<br><span id="verFoot"></span></div>
+  <div class="drawer-foot">Images and video are created by Lumen's Grok engine.<br><span id="verFoot"></span></div>
 </nav>
 
 <main>
@@ -241,13 +241,9 @@ select.field{appearance:none}
       <label>App version</label>
       <div class="field" id="setVer" style="color:var(--dim)"></div>
       <button class="btn" id="updBtn" style="margin-top:12px">↻ Check for updates</button>
-      <label>Video engine — Seedance by Pollinations</label>
-      <div class="field" id="polliStatus" style="color:var(--dim)">Not connected</div>
-      <div class="row-btns">
-        <button class="btn primary" id="connectBtn">Connect Pollinations — free</button>
-        <button class="btn" id="disconnectBtn" style="display:none">Disconnect</button>
-      </div>
-      <div class="hint" style="margin-top:8px">Video runs on Seedance, paid in Pollen from the Pollinations account you connect — the developer pays nothing and no card is needed. Seedance Pro Fast costs about 0.025 Pollen per second (a 5s clip ≈ 0.13 Pollen). Free Quest and weekly Pollen work. Images stay free with no connection at all.</div>
+      <label>Creation engine (Grok)</label>
+      <input class="field" id="setBackend" placeholder="Engine address (optional)">
+      <div class="hint" style="margin-top:8px">Lumen creates images and video through its own Grok engine server. Until an engine address is set, creations are saved in Recent and Lumen tells you honestly that the engine isn't connected — nothing is faked.</div>
       <label>Your data</label>
       <button class="btn" id="clearBtn" style="margin-top:8px">Clear recents &amp; library</button>
     </div>
@@ -276,7 +272,7 @@ select.field{appearance:none}
     </div>
 
     <div id="videoPrefs">
-      <div class="hint" style="margin-top:10px">Video model: <b>Seedance Pro Fast</b> · about 0.025 Pollen per second of video.</div>
+      <div class="hint" style="margin-top:10px">Video is created by the <b>Grok engine</b>.</div>
       <div class="sec-t">Video duration</div>
       <div class="opt-row" id="durRow">
         <button class="opt" data-dur="10">10s</button>
@@ -319,7 +315,7 @@ select.field{appearance:none}
 
 <script>
 "use strict";
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const store = {
@@ -417,17 +413,17 @@ $("#voicePlay").onclick = async () => {
   speak(txt);
 };
 async function writeVoiceScript(prompt, dur, charDesc){
-  const words = Math.max(12, Math.min(120, Math.round((+dur || 10) * 2.2)));
-  const instr = "Write ONLY the voice-over narration for a " + (dur || 10) + "-second video. At most " + words + " words. No quotes, no labels, no stage directions, just the spoken words. The video is about: " + prompt + (charDesc ? " The main character: " + charDesc + "." : "");
-  try{
-    const r = await fetch("https://text.pollinations.ai/" + encodeURIComponent(instr));
-    if(!r.ok) throw new Error("bad");
-    const t = (await r.text()).trim().replace(/\s+/g, " ").replace(/^["']+|["']+$/g, "");
-    if(t && t.length > 15) return t.slice(0, 900);
-    throw new Error("empty");
-  }catch(e){
-    return prompt;
+  if(settings.backend){
+    try{
+      const r = await fetch(settings.backend, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ type:"script", prompt, duration: dur }) });
+      const j = await r.json();
+      if(j && j.text) return String(j.text).slice(0, 900);
+    }catch(e){}
   }
+  let t = (prompt || "").trim().replace(/\s+/g, " ");
+  if(charDesc) t += " — featuring " + charDesc.trim();
+  if(t && !/[.!?]$/.test(t)) t += ".";
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
 }
 function speak(txt){
   try{
@@ -461,7 +457,7 @@ function renderEmpty(){
   const sugs = settings.mode === "video" ? VID_SUGGESTIONS : IMG_SUGGESTIONS;
   th.innerHTML = `<div class="empty-hero">
     <div class="big">LUMEN</div><div class="sub">IMAGE &amp; VIDEO</div>
-    <p>${settings.mode === "video" ? "Describe a video and Lumen makes it with Seedance — connect Pollinations free in Settings, pick a duration and add a voice cover in Preferences." : "Describe any image. Lumen makes it free — no account, no daily cap. Your preferences sit right beside the send button."}</p>
+    <p>${settings.mode === "video" ? "Describe a video and Lumen makes it with the Grok engine — pick a duration, turn on Voice cover, and the narration words write themselves from your prompt." : "Describe any image and Lumen creates it with the Grok engine. Your preferences sit right beside the send button."}</p>
     <div class="chips">${sugs.map(s => `<button class="chip">${esc(s)}</button>`).join("")}</div>
   </div>`;
   $$("#thread .chip").forEach(c => c.onclick = () => { pb.value = c.textContent; pb.dispatchEvent(new Event("input")); pb.focus(); });
@@ -478,7 +474,6 @@ function renderThread(){
   $$("#thread [data-retry]").forEach(b => b.onclick = () => generate(+b.dataset.retry));
   $$("#thread [data-voice]").forEach(b => b.onclick = () => speak(thread[+b.dataset.voice].voiceScript || ""));
   $$("#thread [data-again]").forEach(b => b.onclick = () => { pb.value = thread[+b.dataset.again].prompt; pb.dispatchEvent(new Event("input")); go("chat"); pb.focus(); });
-  $$("#thread [data-connect]").forEach(b => b.onclick = connectPolli);
   hydrateVideos();
   th.scrollTop = th.scrollHeight;
 }
@@ -494,10 +489,10 @@ function aiCard(m, i){
   const voiceLine = m.voice && m.voiceScript ? `<div class="desc" style="margin-top:7px">🎙 ${m.voiceAuto ? "Voice cover — written for you from your prompt" : "Voice cover"}: “${esc(m.voiceScript)}”</div>` : "";
   if(m.status === "loading") return `<div class="result-card"><div class="loading"><div class="shimmer"></div><div class="t">Creating your ${m.mode === "video" ? "video" : "image"}… this can take a moment.</div></div><div class="result-body">${badges}</div></div>`;
   if(m.status === "locked") return `<div class="result-card"><div class="result-body">
-    <div class="ttl">One free tap switches video on</div>
-    <div class="locked" style="margin-top:9px">Lumen makes video with <b>Seedance</b> through Pollinations. Connect your free Pollinations account once — you approve a small Pollen budget on their screen — and video works. This creation is saved in <b>Recent</b> either way, and nothing was charged.</div>
+    <div class="ttl">Engine not connected yet</div>
+    <div class="locked" style="margin-top:9px">Lumen creates with its own <b>Grok engine</b> server. No engine address is set yet, so this creation is saved in <b>Recent</b>, ready to make the moment the engine is connected. Nothing was charged and nothing was faked.</div>
     ${badges}${voiceLine}
-    <div class="row-btns"><button class="btn primary" data-connect="1">🌼 Connect Pollinations — free</button><button class="btn" data-again="${i}">✎ Edit prompt</button>${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Hear voice cover</button>` : ""}</div>
+    <div class="row-btns"><button class="btn" data-again="${i}">✎ Edit prompt</button>${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Hear voice cover</button>` : ""}</div>
   </div></div>`;
   if(m.status === "error") return `<div class="result-card"><div class="result-body">
     <div class="ttl">That one didn't come through</div>
@@ -505,7 +500,7 @@ function aiCard(m, i){
     ${badges}
     <div class="row-btns"><button class="btn primary" data-retry="${i}">↻ Try again</button><button class="btn" data-again="${i}">✎ Edit prompt</button></div>
   </div></div>`;
-  if(m.mode === "video") return `<div class="result-card"><video ${m.blobUrl ? `src="${esc(m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with Seedance${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<a class="btn primary" data-dl="${m.ts}" ${m.blobUrl ? `href="${esc(m.blobUrl)}" download="lumen-video.mp4"` : ""} style="text-decoration:none">⬇ Download</a></div></div></div>`;
+  if(m.mode === "video") return `<div class="result-card"><video ${(m.mediaUrl || m.blobUrl) ? `src="${esc(m.mediaUrl || m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with the Grok engine${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<a class="btn primary" data-dl="${m.ts}" ${(m.mediaUrl || m.blobUrl) ? `href="${esc(m.mediaUrl || m.blobUrl)}" download="lumen-video.mp4"` : ""} style="text-decoration:none">⬇ Download</a></div></div></div>`;
   return `<div class="result-card"><img src="${esc(m.mediaUrl)}" alt=""><div class="result-body">
     <div class="ttl">Your image is ready</div>
     <div class="desc">Long-press the image to save it to your gallery, or open the Library.</div>
@@ -559,102 +554,41 @@ async function generate(i){
   const finalPrompt = buildFinalPrompt(m.prompt);
   if(m.mode === "image"){
     const [w, h] = SIZES[m.asp][m.res];
-    const seed = m.lockChar && settings.charDesc.trim() ? hashStr(settings.charDesc) : Math.floor(Math.random() * 999999);
-    const url = "https://image.pollinations.ai/prompt/" + encodeURIComponent(finalPrompt) +
-      "?width=" + w + "&height=" + h + "&seed=" + seed + "&model=flux&nologo=true";
-    const img = new Image();
-    let done = false;
-    const timer = setTimeout(() => { if(done) return; done = true; m.status = "error"; m.error = "The image service took too long to answer. Your prompt is saved — try again in a moment."; finishRecent(m, "failed"); saveAll(); renderThread(); }, 120000);
-    img.onload = () => { if(done) return; done = true; clearTimeout(timer); m.status = "done"; m.mediaUrl = url; library.unshift({ url, prompt: m.prompt, ts: m.ts }); finishRecent(m, "done", url); saveAll(); renderThread(); toast("Image ready 🖼"); };
-    img.onerror = () => { if(done) return; done = true; clearTimeout(timer); m.status = "error"; finishRecent(m, "failed"); saveAll(); renderThread(); };
-    img.src = url;
+    if(!settings.backend){
+      setTimeout(() => { m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread(); }, 600);
+      return;
+    }
+    fetch(settings.backend, { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ type:"image", prompt: finalPrompt, width: w, height: h, aspect: m.asp, resolution: m.res }) })
+      .then(r => r.json())
+      .then(j => {
+        if(j && (j.imageUrl || j.url)){ m.status = "done"; m.mediaUrl = j.imageUrl || j.url; library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts }); finishRecent(m, "done", m.mediaUrl); toast("Image ready 🖼"); }
+        else { m.status = "locked"; finishRecent(m, "draft"); }
+        saveAll(); renderThread();
+      })
+      .catch(() => { m.status = "error"; m.error = "The engine didn't answer. Check the engine address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
     return;
   }
-  /* video — Seedance via Pollinations (user's own connected wallet) */
+  /* video — Grok engine server */
   if(m.voice && !m.voiceScript){
     m.voiceScript = await writeVoiceScript(m.prompt, m.dur, m.lockChar ? settings.charDesc : "");
-    m.voiceAuto = m.voiceScript !== m.prompt;
+    m.voiceAuto = true;
     saveAll();
   }
-  const key = polliKey();
-  if(!key){
-    setTimeout(() => { m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread(); }, 600);
+  if(!settings.backend){
+    m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread();
     return;
   }
-  const vurl = "https://gen.pollinations.ai/video/" + encodeURIComponent(finalPrompt) +
-    "?model=seedance-pro&duration=" + m.dur + "&key=" + encodeURIComponent(key);
-  fetch(vurl)
-    .then(async r => {
-      if(!r.ok){
-        let msg = "The video engine answered " + r.status + ".";
-        try{ const j = await r.json(); if(j && j.error && j.error.message) msg = j.error.message; }catch(e){}
-        throw new Error(msg);
-      }
-      return r.blob();
+  fetch(settings.backend, { method:"POST", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ type:"video", prompt: finalPrompt, duration: m.dur, resolution: m.res, aspect: m.asp, voiceScript: m.voiceScript }) })
+    .then(r => r.json())
+    .then(j => {
+      if(j && (j.videoUrl || j.url)){ m.status = "done"; m.mediaUrl = j.videoUrl || j.url; finishRecent(m, "done"); toast("Video ready 🎬"); }
+      else { m.status = "locked"; finishRecent(m, "draft"); }
+      saveAll(); renderThread();
     })
-    .then(blob => {
-      m.blobUrl = URL.createObjectURL(blob);
-      idbPut(m.ts, blob);
-      const tv = document.createElement("video");
-      tv.preload = "metadata";
-      tv.onloadedmetadata = () => { if(tv.duration && isFinite(tv.duration)) m.actualDur = Math.round(tv.duration); m.status = "done"; finishRecent(m, "done"); saveAll(); renderThread(); toast("Video ready 🎬"); };
-      tv.onerror = () => { m.status = "done"; finishRecent(m, "done"); saveAll(); renderThread(); };
-      tv.src = m.blobUrl;
-    })
-    .catch(err => { m.status = "error"; m.error = (err && err.message) || "The video engine didn't answer. Check your connection and Pollen balance."; finishRecent(m, "failed"); saveAll(); renderThread(); });
+    .catch(() => { m.status = "error"; m.error = "The engine didn't answer. Check the engine address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
 }
-
-/* ---------------- Pollinations connection (BYOP) ---------------- */
-const POLLI_MODELS = "seedance-pro,seedance-2.0-fast,seedance-2.0-mini,wan";
-function polliKey(){
-  try{
-    const k = localStorage.getItem("pollinations_api_key");
-    const exp = +(localStorage.getItem("pollinations_key_expiry") || 0);
-    if(k && exp && Date.now() > exp){ localStorage.removeItem("pollinations_api_key"); localStorage.removeItem("pollinations_key_expiry"); return null; }
-    return k;
-  }catch(e){ return null; }
-}
-function checkPolliReturn(){
-  if(location.hash && location.hash.indexOf("api_key") > -1){
-    try{
-      const p = new URLSearchParams(location.hash.slice(1));
-      const k = p.get("api_key");
-      if(k){
-        localStorage.setItem("pollinations_api_key", k);
-        localStorage.setItem("pollinations_key_expiry", String(Date.now() + 30 * 24 * 3600 * 1000));
-        setTimeout(() => toast("Pollinations connected 🌼"), 400);
-      }
-    }catch(e){}
-    history.replaceState(null, "", location.pathname + location.search);
-  }
-}
-function connectPolli(){
-  const back = location.href.split("#")[0];
-  location.href = "https://enter.pollinations.ai/authorize?redirect_url=" + encodeURIComponent(back) +
-    "&permissions=profile,balance&models=" + encodeURIComponent(POLLI_MODELS) + "&expiry=30&budget=1";
-}
-async function polliBalance(){
-  const k = polliKey(); if(!k) return null;
-  try{
-    const r = await fetch("https://gen.pollinations.ai/account/balance", { headers: { Authorization: "Bearer " + k } });
-    const j = await r.json();
-    return (j && typeof j.balance === "number") ? j.balance : null;
-  }catch(e){ return null; }
-}
-async function syncPolliUI(){
-  const st = $("#polliStatus"), cb = $("#connectBtn"), db2 = $("#disconnectBtn");
-  if(!st) return;
-  if(!polliKey()){ st.textContent = "Not connected"; cb.style.display = ""; db2.style.display = "none"; return; }
-  cb.style.display = "none"; db2.style.display = "";
-  st.textContent = "Connected — checking balance…";
-  const b = await polliBalance();
-  st.textContent = b === null ? "Connected ✓" : "Connected ✓ · Balance: " + b + " Pollen";
-}
-$("#connectBtn").onclick = connectPolli;
-$("#disconnectBtn").onclick = () => {
-  try{ localStorage.removeItem("pollinations_api_key"); localStorage.removeItem("pollinations_key_expiry"); }catch(e){}
-  syncPolliUI(); toast("Disconnected");
-};
 
 /* ---------------- local video vault (IndexedDB) ---------------- */
 function idbOpen(){
@@ -761,7 +695,8 @@ $("#pgCopy").onclick = () => {
 /* ---------------- settings & updates ---------------- */
 $("#setVer").textContent = "Lumen v" + APP_VERSION + " — feature updates arrive inside the app automatically.";
 $("#verFoot").textContent = "Version " + APP_VERSION;
-syncPolliUI();
+$("#setBackend").value = settings.backend || "";
+$("#setBackend").addEventListener("change", e => { settings.backend = e.target.value.trim(); saveAll(); toast("Saved"); });
 $("#clearBtn").onclick = () => { thread = []; recents = []; library = []; saveAll(); renderThread(); toast("Cleared"); };
 function checkUpdate(manual){
   if(!/^https?:/.test(location.protocol)){ if(manual) toast("Updates arrive when Lumen is connected online"); return; }
@@ -776,12 +711,10 @@ function checkUpdate(manual){
 $("#updBtn").onclick = () => checkUpdate(true);
 
 /* ---------------- boot ---------------- */
-checkPolliReturn();
 thread.forEach(m => { delete m.blobUrl; });
 syncPrefsUI();
 saveAll();
 renderThread();
-syncPolliUI();
 checkUpdate(false);
 </script>
 </body>
