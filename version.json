@@ -1,1 +1,1 @@
-{"version": "1.5.1", "notes": "Fixed the Download button on image and video cards, and Make another now creates a fresh one right away."}
+{"version": "1.5.2", "notes": "Videos now run their full chosen length — pick 30s and you get a real 30s video. The card shows the true clip length."}

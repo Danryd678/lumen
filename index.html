@@ -325,7 +325,7 @@ select.field{appearance:none}
 
 <script>
 "use strict";
-const APP_VERSION = "1.5.1";
+const APP_VERSION = "1.5.2";
 const ENGINE_URL = "https://dry-bills-mood-loud.trycloudflare.com/lumen/create";
 const ENGINE_JOBS = ENGINE_URL.replace(/\/lumen\/create\/?$/, "") + "/lumen/jobs/";
 const $ = s => document.querySelector(s);
@@ -550,7 +550,7 @@ function aiCard(m, i){
     ${m.voice ? `<span class="badge">🎙 Voice cover</span>` : ""}
   </div>`;
   const voiceLine = m.voice && m.voiceScript ? `<div class="desc" style="margin-top:7px">🎙 ${m.voiceAuto ? "Voice cover — written for you from your prompt" : "Voice cover"}: “${esc(m.voiceScript)}”</div>` : "";
-  if(m.status === "loading") return `<div class="result-card"><div class="loading"><div class="shimmer"></div><div class="t">${m.mode === "video" ? "Creating your video… video takes a few minutes — keep Lumen open and it will land right here." : "Creating your image… this can take a moment."}</div></div><div class="result-body">${badges}</div></div>`;
+  if(m.status === "loading") return `<div class="result-card"><div class="loading"><div class="shimmer"></div><div class="t">${m.mode === "video" ? "Creating your video… short videos take a few minutes, longer ones take longer — keep Lumen open and it will land right here." : "Creating your image… this can take a moment."}</div></div><div class="result-body">${badges}</div></div>`;
   if(m.status === "locked") return `<div class="result-card"><div class="result-body">
     <div class="ttl">Saved draft</div>
     <div class="locked" style="margin-top:9px">This one was saved before Lumen's engine was built in. Tap <b>✎ Edit prompt</b> and create it now — the engine is ready. Nothing was charged and nothing was faked.</div>
@@ -619,7 +619,7 @@ function finishRecent(m, status, thumb){
    pattern is what makes video work. If the server answers with the
    finished creation directly (older server), that works too. */
 async function pollJob(jobId){
-  const deadline = Date.now() + 15 * 60 * 1000;
+  const deadline = Date.now() + 30 * 60 * 1000;
   for(;;){
     await new Promise(r => setTimeout(r, 4000));
     let pj = {};
@@ -645,6 +645,7 @@ async function createViaEngine(body, m){
 }
 function completeCreation(m, j){
   m.status = "done"; m.mediaUrl = j.imageUrl || j.videoUrl || j.url;
+  if(j.duration) m.actualDur = Math.round(j.duration);
   delete m.jobId; delete m.error;
   if(m.mode === "image"){
     library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts, kind:"image" });
