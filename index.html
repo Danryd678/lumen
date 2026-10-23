@@ -137,6 +137,9 @@ select.field{appearance:none}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:14px}
 .grid figure{border-radius:14px;overflow:hidden;background:var(--card);border:1px solid var(--line)}
 .grid img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.grid video{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#000}
+.rec-main{flex:1;display:flex;gap:12px;align-items:center;text-align:left;min-width:0;color:inherit}
+.rec-del{flex:0 0 auto;width:36px;height:36px;border-radius:11px;background:var(--card);border:1px solid var(--line);font-size:14px}
 .grid figcaption{padding:8px 10px;font-size:11px;color:var(--dim);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .none{padding:44px 26px;text-align:center;color:var(--faint);font-size:13.5px;line-height:1.6}
 .form{padding:6px 16px 20px}
@@ -157,12 +160,13 @@ select.field{appearance:none}
 <nav id="drawer">
   <div class="drawer-head"><div class="big">LUMEN</div><div class="sub">IMAGE &amp; VIDEO STUDIO</div></div>
   <button class="menu-item" data-nav="chat"><span class="ic">✦</span>New creation</button>
+  <button class="menu-item" data-nav="chats"><span class="ic">💬</span>My chats<small id="chatCount"></small></button>
   <button class="menu-item" data-nav="recents"><span class="ic">🕘</span>Recent<small id="recCount"></small></button>
   <button class="menu-item" data-nav="promptgen"><span class="ic">🪄</span>Prompt generator</button>
   <button class="menu-item" data-nav="library"><span class="ic">🖼️</span>My library<small id="libCount"></small></button>
   <button class="menu-item" data-nav="settings"><span class="ic">⚙️</span>Settings</button>
   <button class="menu-item" id="menuPrefs"><span class="ic">🎛️</span>Preferences</button>
-  <div class="drawer-foot">Images and video are created by Lumen's Grok engine.<br><span id="verFoot"></span></div>
+  <div class="drawer-foot">Images and video are created by Lumen's built-in engine.<br><span id="verFoot"></span></div>
 </nav>
 
 <main>
@@ -187,6 +191,13 @@ select.field{appearance:none}
     </div>
   </section>
 
+  <!-- CHATS -->
+  <section class="view" id="view-chats">
+    <div class="page-head"><h2>My chats</h2><p>Every chat is its own conversation. Start a new one any time — your earlier chats stay right here, untouched.</p></div>
+    <div style="padding:10px 16px 0"><button class="btn primary" id="newChatBtn" style="width:100%;padding:13px;border-radius:13px">✦ Start a new chat</button></div>
+    <div id="chatList" style="margin-top:8px"></div>
+  </section>
+
   <!-- RECENTS -->
   <section class="view" id="view-recents">
     <div class="page-head"><h2>Recent</h2><p>Everything you create is saved here, newest first. Tap one to bring it back into the chat.</p></div>
@@ -195,9 +206,9 @@ select.field{appearance:none}
 
   <!-- LIBRARY -->
   <section class="view" id="view-library">
-    <div class="page-head"><h2>My library</h2><p>Your generated images. Long-press an image inside the chat to save it to your phone gallery.</p></div>
+    <div class="page-head"><h2>My library</h2><p>Your finished images and videos. Long-press an image inside the chat to save it to your phone gallery.</p></div>
     <div class="grid" id="libGrid"></div>
-    <div class="none" id="libNone" style="display:none">No images yet.<br>Create your first one in the chat.</div>
+    <div class="none" id="libNone" style="display:none">No creations yet.<br>Create your first one in the chat.</div>
   </section>
 
   <!-- PROMPT GENERATOR -->
@@ -225,7 +236,7 @@ select.field{appearance:none}
       <button class="btn primary" id="pgGo" style="width:100%;margin-top:20px;padding:14px;border-radius:14px;font-size:14.5px">🪄 Write my prompt</button>
       <div id="pgOut" style="display:none;margin-top:18px">
         <label>Your prompt</label>
-        <textarea class="field" id="pgResult" rows="5"></textarea>
+        <textarea class="field" id="pgResult" rows="7"></textarea>
         <div class="row-btns">
           <button class="btn primary" id="pgUse">Use in chat →</button>
           <button class="btn" id="pgCopy">Copy</button>
@@ -241,15 +252,8 @@ select.field{appearance:none}
       <label>App version</label>
       <div class="field" id="setVer" style="color:var(--dim)"></div>
       <button class="btn" id="updBtn" style="margin-top:12px">↻ Check for updates</button>
-      <label>Your Lumen API</label>
-      <input class="field" id="setApiUrl" placeholder="API address, e.g. https://lumen-api…">
-      <input class="field" id="setApiKey" placeholder="Your lumen_live_… key" autocomplete="off">
-      <div class="hint" style="margin-top:8px">This is <b>your own API</b> — the key system you own. Paste the address of your Lumen API server and your personal <b>lumen_live_</b> key. The app sends the key with every creation; the server checks it, counts your daily limit, and calls the hidden engine. Your key is stored only on this phone.</div>
-      <button class="btn" id="apiCheckBtn" style="margin-top:10px">🔑 Check my key</button>
-      <div class="hint" id="apiCheckOut" style="margin-top:8px"></div>
-      <label>Creation engine (Grok, direct — optional)</label>
-      <input class="field" id="setBackend" placeholder="Engine address (optional)">
-      <div class="hint" style="margin-top:8px">Lumen creates images and video through its own Grok engine server. Until an engine address is set, creations are saved in Recent and Lumen tells you honestly that the engine isn't connected — nothing is faked.</div>
+      <label>Creation engine</label>
+      <div class="field" style="color:var(--dim)">Built into Lumen ✓ — your images and videos are made by Lumen's own engine. Nothing to paste, nothing to set up.</div>
       <label>Your data</label>
       <button class="btn" id="clearBtn" style="margin-top:8px">Clear recents &amp; library</button>
     </div>
@@ -278,7 +282,7 @@ select.field{appearance:none}
     </div>
 
     <div id="videoPrefs">
-      <div class="hint" style="margin-top:10px">Video is created by the <b>Grok engine</b>.</div>
+      <div class="hint" style="margin-top:10px">Video is created by Lumen's built-in engine.</div>
       <div class="sec-t">Video duration</div>
       <div class="opt-row" id="durRow">
         <button class="opt" data-dur="10">10s</button>
@@ -321,7 +325,9 @@ select.field{appearance:none}
 
 <script>
 "use strict";
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.0";
+const ENGINE_URL = "https://dry-bills-mood-loud.trycloudflare.com/lumen/create";
+const ENGINE_JOBS = ENGINE_URL.replace(/\/lumen\/create\/?$/, "") + "/lumen/jobs/";
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const store = {
@@ -331,21 +337,44 @@ const store = {
 let settings = Object.assign({
   mode:"image", res:"720p", asp:"16:9", dur:10,
   voice:false, voiceScript:"",
-  lockChar:false, charDesc:"", lockBg:false, bgDesc:"",
-  backend:"", apiUrl:"", apiKey:""
+  lockChar:false, charDesc:"", lockBg:false, bgDesc:""
 }, store.get("lumen.settings.v1", {}));
-let thread = store.get("lumen.thread.v1", []);
+let chats = store.get("lumen.chats.v1", null);
+let activeChatId = store.get("lumen.activeChat.v1", null);
+if(!Array.isArray(chats) || !chats.length){
+  const legacy = store.get("lumen.thread.v1", []);
+  const firstUser = legacy.find(m => m.who === "user");
+  chats = [{ id: Date.now(), title: firstUser ? String(firstUser.text).slice(0, 42) : "My first chat", ts: Date.now(), messages: legacy }];
+  activeChatId = chats[0].id;
+}
+if(!chats.some(c => c.id === activeChatId)) activeChatId = chats[0].id;
+let thread = chats.find(c => c.id === activeChatId).messages;
 let recents = store.get("lumen.recents.v1", []);
 let library = store.get("lumen.library.v1", []);
 let refImage = null;
 
 function saveAll(){
   store.set("lumen.settings.v1", settings);
-  store.set("lumen.thread.v1", thread.slice(-30));
+  const cc = chats.find(c => c.id === activeChatId); if(cc) cc.messages = thread;
+  chats.forEach(c => { c.messages = (c.messages || []).slice(-30); });
+  store.set("lumen.chats.v1", chats.slice(0, 30));
+  store.set("lumen.activeChat.v1", activeChatId);
   store.set("lumen.recents.v1", recents.slice(0, 60));
   store.set("lumen.library.v1", library.slice(0, 48));
   $("#recCount").textContent = recents.length ? recents.length + "" : "";
   $("#libCount").textContent = library.length ? library.length + "" : "";
+  const cn = $("#chatCount"); if(cn) cn.textContent = chats.length > 1 ? chats.length + "" : "";
+}
+function currentChat(){ return chats.find(c => c.id === activeChatId) || chats[0]; }
+function newChat(){
+  const c = { id: Date.now(), title: "New chat", ts: Date.now(), messages: [] };
+  chats.unshift(c); activeChatId = c.id; thread = c.messages;
+  saveAll(); go("chat"); renderThread(); pb.focus();
+}
+function openChat(id){
+  const c = chats.find(c => c.id === id); if(!c) return;
+  activeChatId = c.id; thread = c.messages;
+  saveAll(); go("chat"); renderThread();
 }
 function toast(msg){
   const t = $("#toast"); t.textContent = msg; t.classList.add("on");
@@ -361,6 +390,7 @@ function go(view){
   $("#view-" + view).classList.add("on");
   closeDrawer();
   if(view === "recents") renderRecents();
+  if(view === "chats") renderChats();
   if(view === "library") renderLibrary();
   window.scrollTo(0,0);
 }
@@ -369,7 +399,9 @@ function closeDrawer(){ $("#drawer").classList.remove("on"); $("#scrim").classLi
 $("#menuBtn").onclick = openDrawer;
 $("#scrim").onclick = closeDrawer;
 $$("#drawer .menu-item[data-nav]").forEach(b => b.onclick = () => go(b.dataset.nav));
-$("#newBtn").onclick = () => { go("chat"); $("#promptBox").focus(); };
+$("#newBtn").onclick = () => newChat();
+$$('#drawer .menu-item[data-nav="chat"]').forEach(b => b.onclick = () => newChat());
+$("#newChatBtn").onclick = () => newChat();
 $("#menuPrefs").onclick = () => { closeDrawer(); openSheet(); };
 
 /* ---------------- preferences ---------------- */
@@ -418,30 +450,13 @@ $("#voicePlay").onclick = async () => {
   settings.voiceScript = txt; saveAll();
   speak(txt);
 };
-/* ---------------- Lumen API (her own key system) ---------------- */
-function apiBase(){ return (settings.apiUrl || "").trim().replace(/\/$/, ""); }
-function apiConfigured(){ return !!(apiBase() && (settings.apiKey || "").trim()); }
-async function lumenApi(body){
-  const r = await fetch(apiBase() + "/v1/generate", { method:"POST",
-    headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + settings.apiKey.trim() },
-    body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({}));
-  return { status: r.status, j };
-}
+/* ---------------- built-in engine ---------------- */
 async function writeVoiceScript(prompt, dur, charDesc){
-  if(apiConfigured()){
-    try{
-      const { status, j } = await lumenApi({ type:"script", prompt, duration: dur, charDesc: charDesc || "" });
-      if(status === 200 && j && j.text) return String(j.text).slice(0, 900);
-    }catch(e){}
-  }
-  if(settings.backend){
-    try{
-      const r = await fetch(settings.backend, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ type:"script", prompt, duration: dur }) });
-      const j = await r.json();
-      if(j && j.text) return String(j.text).slice(0, 900);
-    }catch(e){}
-  }
+  try{
+    const r = await fetch(ENGINE_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ type:"script", prompt, duration: dur }) });
+    const j = await r.json();
+    if(j && j.text) return String(j.text).slice(0, 900);
+  }catch(e){}
   let t = (prompt || "").trim().replace(/\s+/g, " ");
   if(charDesc) t += " — featuring " + charDesc.trim();
   if(t && !/[.!?]$/.test(t)) t += ".";
@@ -479,7 +494,7 @@ function renderEmpty(){
   const sugs = settings.mode === "video" ? VID_SUGGESTIONS : IMG_SUGGESTIONS;
   th.innerHTML = `<div class="empty-hero">
     <div class="big">LUMEN</div><div class="sub">IMAGE &amp; VIDEO</div>
-    <p>${settings.mode === "video" ? "Describe a video and Lumen makes it with the Grok engine — pick a duration, turn on Voice cover, and the narration words write themselves from your prompt." : "Describe any image and Lumen creates it with the Grok engine. Your preferences sit right beside the send button."}</p>
+    <p>${settings.mode === "video" ? "Describe a video and Lumen makes it with its built-in engine — pick a duration, turn on Voice cover, and the narration words write themselves from your prompt." : "Describe any image and Lumen creates it with its built-in engine. Your preferences sit right beside the send button."}</p>
     <div class="chips">${sugs.map(s => `<button class="chip">${esc(s)}</button>`).join("")}</div>
   </div>`;
   $$("#thread .chip").forEach(c => c.onclick = () => { pb.value = c.textContent; pb.dispatchEvent(new Event("input")); pb.focus(); });
@@ -509,10 +524,10 @@ function aiCard(m, i){
     ${m.voice ? `<span class="badge">🎙 Voice cover</span>` : ""}
   </div>`;
   const voiceLine = m.voice && m.voiceScript ? `<div class="desc" style="margin-top:7px">🎙 ${m.voiceAuto ? "Voice cover — written for you from your prompt" : "Voice cover"}: “${esc(m.voiceScript)}”</div>` : "";
-  if(m.status === "loading") return `<div class="result-card"><div class="loading"><div class="shimmer"></div><div class="t">Creating your ${m.mode === "video" ? "video" : "image"}… this can take a moment.</div></div><div class="result-body">${badges}</div></div>`;
+  if(m.status === "loading") return `<div class="result-card"><div class="loading"><div class="shimmer"></div><div class="t">${m.mode === "video" ? "Creating your video… video takes a few minutes — keep Lumen open and it will land right here." : "Creating your image… this can take a moment."}</div></div><div class="result-body">${badges}</div></div>`;
   if(m.status === "locked") return `<div class="result-card"><div class="result-body">
-    <div class="ttl">Engine not connected yet</div>
-    <div class="locked" style="margin-top:9px">Lumen creates with its own <b>Grok engine</b> server. No engine address is set yet, so this creation is saved in <b>Recent</b>, ready to make the moment the engine is connected. Nothing was charged and nothing was faked.</div>
+    <div class="ttl">Saved draft</div>
+    <div class="locked" style="margin-top:9px">This one was saved before Lumen's engine was built in. Tap <b>✎ Edit prompt</b> and create it now — the engine is ready. Nothing was charged and nothing was faked.</div>
     ${badges}${voiceLine}
     <div class="row-btns"><button class="btn" data-again="${i}">✎ Edit prompt</button>${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Hear voice cover</button>` : ""}</div>
   </div></div>`;
@@ -522,7 +537,7 @@ function aiCard(m, i){
     ${badges}
     <div class="row-btns"><button class="btn primary" data-retry="${i}">↻ Try again</button><button class="btn" data-again="${i}">✎ Edit prompt</button></div>
   </div></div>`;
-  if(m.mode === "video") return `<div class="result-card"><video ${(m.mediaUrl || m.blobUrl) ? `src="${esc(m.mediaUrl || m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with the Grok engine${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<a class="btn primary" data-dl="${m.ts}" ${(m.mediaUrl || m.blobUrl) ? `href="${esc(m.mediaUrl || m.blobUrl)}" download="lumen-video.mp4"` : ""} style="text-decoration:none">⬇ Download</a></div></div></div>`;
+  if(m.mode === "video") return `<div class="result-card"><video ${(m.mediaUrl || m.blobUrl) ? `src="${esc(m.mediaUrl || m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with Lumen's engine${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<a class="btn primary" data-dl="${m.ts}" ${(m.mediaUrl || m.blobUrl) ? `href="${esc(m.mediaUrl || m.blobUrl)}" download="lumen-video.mp4"` : ""} style="text-decoration:none">⬇ Download</a></div></div></div>`;
   return `<div class="result-card"><img src="${esc(m.mediaUrl)}" alt=""><div class="result-body">
     <div class="ttl">Your image is ready</div>
     <div class="desc">Long-press the image to save it to your gallery, or open the Library.</div>
@@ -558,6 +573,8 @@ $("#sendBtn").onclick = () => {
   const text = pb.value.trim();
   if(!text){ toast("Describe what you want to create first"); pb.focus(); return; }
   thread.push({ who:"user", text, ts: Date.now() });
+  const cc = currentChat();
+  if(cc && (cc.title === "New chat" || cc.title === "My first chat")) cc.title = text.slice(0, 42);
   const m = snapshot(text);
   thread.push(m);
   recents.unshift({ prompt:text, mode:m.mode, res:m.res, asp:m.asp, dur:m.dur, ts:m.ts, status:"working" });
@@ -570,68 +587,86 @@ function finishRecent(m, status, thumb){
   if(r){ r.status = status; if(thumb) r.thumb = thumb; }
   saveAll();
 }
+/* Order-and-check: the engine accepts the order and answers with a
+   job ticket; Lumen then checks the ticket until the creation is
+   ready. A single long call would be cut off mid-cooking — this
+   pattern is what makes video work. If the server answers with the
+   finished creation directly (older server), that works too. */
+async function pollJob(jobId){
+  const deadline = Date.now() + 15 * 60 * 1000;
+  for(;;){
+    await new Promise(r => setTimeout(r, 4000));
+    let pj = {};
+    try{
+      const pr = await fetch(ENGINE_JOBS + jobId);
+      pj = await pr.json().catch(() => ({}));
+    }catch(e){ pj = {}; }
+    if(pj.status === "done") return pj;
+    if(pj.status === "error") throw new Error(pj.error || "The engine couldn't finish that one.");
+    if(Date.now() > deadline) throw new Error("That creation is taking very long \u2014 the engine may be busy. Try again in a little while.");
+  }
+}
+async function createViaEngine(body, m){
+  const r = await fetch(ENGINE_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if(j && (j.imageUrl || j.videoUrl || j.url)) return j;
+  if(j && j.jobId){
+    if(m){ m.jobId = j.jobId; saveAll(); }
+    return await pollJob(j.jobId);
+  }
+  const msg = (j && (j.detail || j.message)) || "";
+  throw new Error(msg ? String(msg) : "The engine didn't answer that request.");
+}
+function completeCreation(m, j){
+  m.status = "done"; m.mediaUrl = j.imageUrl || j.videoUrl || j.url;
+  delete m.jobId; delete m.error;
+  if(m.mode === "image"){
+    library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts, kind:"image" });
+    finishRecent(m, "done", m.mediaUrl);
+    toast("Image ready \U0001F5BC");
+  } else {
+    library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts, kind:"video" });
+    finishRecent(m, "done");
+    toast("Video ready \U0001F3AC");
+  }
+  saveAll(); renderThread();
+}
+function failCreation(m, msg){
+  m.status = "error"; m.error = msg; delete m.jobId;
+  finishRecent(m, "failed"); saveAll(); renderThread();
+}
+function friendlyErr(e){
+  const raw = (e && e.message) || "";
+  if(!raw || raw === "Failed to fetch") return "The engine didn't answer \u2014 check your connection and try again.";
+  return raw;
+}
 async function generate(i){
   const m = thread[i]; if(!m) return;
-  m.status = "loading"; saveAll(); renderThread();
+  m.status = "loading"; delete m.error; saveAll(); renderThread();
   const finalPrompt = buildFinalPrompt(m.prompt);
-  if(m.mode === "image"){
-    const [w, h] = SIZES[m.asp][m.res];
-    if(apiConfigured()){
-      lumenApi({ type:"image", prompt: finalPrompt, width: w, height: h, aspect: m.asp, resolution: m.res })
-        .then(({ status, j }) => {
-          if(status === 200 && j && (j.imageUrl || j.url)){ m.status = "done"; m.mediaUrl = j.imageUrl || j.url; library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts }); finishRecent(m, "done", m.mediaUrl); toast("Image ready 🖼"); }
-          else if(j && j.error === "no_engine_configured"){ m.status = "locked"; finishRecent(m, "draft"); }
-          else { m.status = "error"; m.error = (j && j.message) || "Your Lumen API did not accept that request. Check your key in Settings."; finishRecent(m, "failed"); }
-          saveAll(); renderThread();
-        })
-        .catch(() => { m.status = "error"; m.error = "Your Lumen API server didn't answer. Check the API address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
-      return;
+  try{
+    if(m.mode === "image"){
+      const [w, h] = SIZES[m.asp][m.res];
+      const j = await createViaEngine({ type:"image", prompt: finalPrompt, width: w, height: h, aspect: m.asp, resolution: m.res }, m);
+      completeCreation(m, j);
+    } else {
+      if(m.voice && !m.voiceScript){
+        m.voiceScript = await writeVoiceScript(m.prompt, m.dur, m.lockChar ? settings.charDesc : "");
+        m.voiceAuto = true;
+        saveAll();
+      }
+      const j = await createViaEngine({ type:"video", prompt: finalPrompt, duration: m.dur, resolution: m.res, aspect: m.asp, voiceScript: m.voiceScript }, m);
+      completeCreation(m, j);
     }
-    if(!settings.backend){
-      setTimeout(() => { m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread(); }, 600);
-      return;
-    }
-    fetch(settings.backend, { method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ type:"image", prompt: finalPrompt, width: w, height: h, aspect: m.asp, resolution: m.res }) })
-      .then(r => r.json())
-      .then(j => {
-        if(j && (j.imageUrl || j.url)){ m.status = "done"; m.mediaUrl = j.imageUrl || j.url; library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts }); finishRecent(m, "done", m.mediaUrl); toast("Image ready 🖼"); }
-        else { m.status = "locked"; finishRecent(m, "draft"); }
-        saveAll(); renderThread();
-      })
-      .catch(() => { m.status = "error"; m.error = "The engine didn't answer. Check the engine address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
-    return;
+  }catch(e){
+    failCreation(m, friendlyErr(e));
   }
-  /* video — Grok engine server */
-  if(m.voice && !m.voiceScript){
-    m.voiceScript = await writeVoiceScript(m.prompt, m.dur, m.lockChar ? settings.charDesc : "");
-    m.voiceAuto = true;
-    saveAll();
-  }
-  if(apiConfigured()){
-    lumenApi({ type:"video", prompt: finalPrompt, duration: m.dur, resolution: m.res, aspect: m.asp, voiceScript: m.voiceScript })
-      .then(({ status, j }) => {
-        if(status === 200 && j && (j.videoUrl || j.url)){ m.status = "done"; m.mediaUrl = j.videoUrl || j.url; finishRecent(m, "done"); toast("Video ready 🎬"); }
-        else if(j && j.error === "no_engine_configured"){ m.status = "locked"; finishRecent(m, "draft"); }
-        else { m.status = "error"; m.error = (j && j.message) || "Your Lumen API did not accept that request. Check your key in Settings."; finishRecent(m, "failed"); }
-        saveAll(); renderThread();
-      })
-      .catch(() => { m.status = "error"; m.error = "Your Lumen API server didn't answer. Check the API address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
-    return;
-  }
-  if(!settings.backend){
-    m.status = "locked"; finishRecent(m, "draft"); saveAll(); renderThread();
-    return;
-  }
-  fetch(settings.backend, { method:"POST", headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ type:"video", prompt: finalPrompt, duration: m.dur, resolution: m.res, aspect: m.asp, voiceScript: m.voiceScript }) })
-    .then(r => r.json())
-    .then(j => {
-      if(j && (j.videoUrl || j.url)){ m.status = "done"; m.mediaUrl = j.videoUrl || j.url; finishRecent(m, "done"); toast("Video ready 🎬"); }
-      else { m.status = "locked"; finishRecent(m, "draft"); }
-      saveAll(); renderThread();
-    })
-    .catch(() => { m.status = "error"; m.error = "The engine didn't answer. Check the engine address in Settings, or your connection."; finishRecent(m, "failed"); saveAll(); renderThread(); });
+}
+async function resumeCreation(m){
+  try{
+    const j = await pollJob(m.jobId);
+    completeCreation(m, j);
+  }catch(e){ failCreation(m, friendlyErr(e)); }
 }
 
 /* ---------------- local video vault (IndexedDB) ---------------- */
@@ -690,38 +725,95 @@ $("#enhBtn").onclick = () => {
 function renderRecents(){
   const el = $("#recList");
   if(!recents.length){ el.innerHTML = `<div class="none">Nothing here yet.<br>Your creations will appear here automatically.</div>`; return; }
-  el.innerHTML = recents.map((r, i) => `<button class="rec-item" data-rec="${i}">
+  el.innerHTML = recents.map((r, i) => `<div class="rec-item">
+    <button class="rec-main" data-rec="${i}">
     ${r.thumb ? `<img src="${esc(r.thumb)}" alt="">` : `<span class="ph">${r.mode === "video" ? "🎬" : "🖼"}</span>`}
-    <span><span class="tt">${esc(r.prompt)}</span><span class="mm">${r.mode === "video" ? "Video" : "Image"} · ${esc(r.res)}${r.mode === "video" ? " · " + r.dur + "s" : ""} · ${r.status === "done" ? "Ready" : r.status === "draft" ? "Saved draft" : r.status === "failed" ? "Failed" : "Working"} · ${timeStr(r.ts)}</span></span>
-  </button>`).join("");
+    <span style="min-width:0"><span class="tt">${esc(r.prompt)}</span><span class="mm" style="display:block">${r.mode === "video" ? "Video" : "Image"} · ${esc(r.res)}${r.mode === "video" ? " · " + r.dur + "s" : ""} · ${r.status === "done" ? "Ready" : r.status === "draft" ? "Saved draft" : r.status === "failed" ? "Failed" : "Working"} · ${timeStr(r.ts)}</span></span>
+    </button>
+    <button class="rec-del" data-del="${i}" aria-label="Delete from Recent">🗑</button>
+  </div>`).join("");
   $$("#recList [data-rec]").forEach(b => b.onclick = () => {
     const r = recents[+b.dataset.rec];
     settings.mode = r.mode; settings.res = r.res; settings.asp = r.asp || "16:9"; if(r.dur) settings.dur = r.dur;
     pb.value = r.prompt; pb.dispatchEvent(new Event("input"));
     syncPrefsUI(); saveAll(); go("chat"); pb.focus();
   });
+  $$("#recList [data-del]").forEach(b => b.onclick = () => {
+    if(!confirm("Delete this from Recent?")) return;
+    recents.splice(+b.dataset.del, 1);
+    saveAll(); renderRecents(); toast("Deleted");
+  });
+}
+function renderChats(){
+  const el = $("#chatList");
+  if(!chats.length){ el.innerHTML = `<div class="none">No chats yet.</div>`; return; }
+  el.innerHTML = chats.map(c => {
+    const n = (c.messages || []).filter(x => x.who === "user").length;
+    return `<div class="rec-item">
+    <button class="rec-main" data-chat="${c.id}">
+    <span class="ph">💬</span>
+    <span style="min-width:0"><span class="tt">${esc(c.title || "Chat")}${c.id === activeChatId ? " · open now" : ""}</span><span class="mm" style="display:block">${n} prompt${n === 1 ? "" : "s"} · ${timeStr(c.ts || c.id)}</span></span>
+    </button>
+    <button class="rec-del" data-chatdel="${c.id}" aria-label="Delete chat">🗑</button>
+  </div>`;
+  }).join("");
+  $$("#chatList [data-chat]").forEach(b => b.onclick = () => openChat(+b.dataset.chat));
+  $$("#chatList [data-chatdel]").forEach(b => b.onclick = () => {
+    if(!confirm("Delete this whole chat?")) return;
+    const id = +b.dataset.chatdel;
+    chats = chats.filter(c => c.id !== id);
+    if(!chats.length) chats = [{ id: Date.now(), title: "New chat", ts: Date.now(), messages: [] }];
+    if(!chats.some(c => c.id === activeChatId)){ activeChatId = chats[0].id; thread = chats[0].messages; renderThread(); }
+    saveAll(); renderChats(); toast("Chat deleted");
+  });
 }
 function renderLibrary(){
   const g = $("#libGrid");
   $("#libNone").style.display = library.length ? "none" : "block";
-  g.innerHTML = library.map(it => `<figure><img src="${esc(it.url)}" loading="lazy" alt=""><figcaption>${esc(it.prompt)}</figcaption></figure>`).join("");
+  g.innerHTML = library.map(it => {
+    const isVid = it.kind === "video" || /\.mp4(\?|$)/i.test(it.url || "");
+    return isVid
+      ? `<figure><video src="${esc(it.url)}" controls playsinline preload="metadata"></video><figcaption>${esc(it.prompt)}</figcaption></figure>`
+      : `<figure><img src="${esc(it.url)}" loading="lazy" alt=""><figcaption>${esc(it.prompt)}</figcaption></figure>`;
+  }).join("");
 }
 
 /* ---------------- prompt generator ---------------- */
+const PG_STYLES = {
+  "Cinematic film still": "shot on 35mm film, cinematic colour grading, anamorphic depth",
+  "Photorealistic": "photorealistic, shot on a professional DSLR, true-to-life detail and texture",
+  "Anime": "high-end anime style, clean line art, vibrant cel shading",
+  "3D animation": "polished 3D animation render, feature-film quality, soft studio lighting",
+  "Cartoon": "bold cartoon style, clean shapes, bright cheerful colours",
+  "Oil painting": "classical oil painting, visible brushstrokes, rich canvas texture",
+  "Cyberpunk neon": "cyberpunk neon aesthetic, rain-slick streets, glowing signs, blade-runner atmosphere"
+};
+const PG_MOODS = {
+  "Joyful and epic": "golden triumphant light, energy and celebration in the air",
+  "Calm and dreamy": "soft dreamy light, gentle haze, a peaceful atmosphere",
+  "Dark and dramatic": "dark dramatic mood, deep shadows, one strong light source",
+  "Romantic golden hour": "warm golden-hour glow, long soft shadows, romantic haze",
+  "Funny and playful": "bright playful colours, cheerful exaggerated expressions",
+  "Mysterious": "moody fog, half-hidden details, a sense of mystery"
+};
 $("#pgGo").onclick = () => {
   const subj = $("#pgSubject").value.trim(), act = $("#pgAction").value.trim(), set = $("#pgSetting").value.trim();
   if(!subj){ toast("Tell me what it's about first"); return; }
   const style = $("#pgStyle").value, mood = $("#pgMood").value, mode = $("#pgMode").value;
-  let p = subj;
+  let p = subj.charAt(0).toUpperCase() + subj.slice(1);
   if(act) p += ", " + act;
   if(set) p += ", in " + set;
-  p += ". Style: " + style.toLowerCase() + ". Mood: " + mood.toLowerCase() + ".";
-  p += mode === "video"
-    ? " Smooth cinematic camera movement, natural real-time motion, dramatic lighting, shallow depth of field, ultra detailed, no text, no watermark."
-    : " Ultra detailed, sharp focus, beautiful lighting, professional composition, no text, no watermark.";
-  $("#pgResult").value = p;
+  p += ". " + (PG_STYLES[style] || style.toLowerCase()) + ".";
+  p += " " + (PG_MOODS[mood] || mood.toLowerCase()) + ".";
+  p += " Ultra detailed, sharp focus, rich colour, professional composition.";
+  if(mode === "video") p += " Motion: smooth cinematic camera push-in, natural real-time movement, gentle parallax, steady pacing from the first frame to the last.";
+  let neg = "Negative prompt: blurry, low quality, deformed hands, extra fingers, distorted face, text, watermark, logo";
+  if(mode === "video") neg += ", flicker, warping, morphing faces, jump cuts";
+  if(!["Anime", "Cartoon", "3D animation"].includes(style)) neg += ", cartoonish, plastic CGI look";
+  $("#pgResult").value = p + "\n\n" + neg;
   $("#pgOut").style.display = "block";
   $("#pgResult").scrollIntoView({ behavior:"smooth", block:"center" });
+  toast("Epic prompt written 🪄");
 };
 $("#pgUse").onclick = () => {
   settings.mode = $("#pgMode").value;
@@ -739,24 +831,12 @@ $("#pgCopy").onclick = () => {
 /* ---------------- settings & updates ---------------- */
 $("#setVer").textContent = "Lumen v" + APP_VERSION + " — feature updates arrive inside the app automatically.";
 $("#verFoot").textContent = "Version " + APP_VERSION;
-$("#setBackend").value = settings.backend || "";
-$("#setBackend").addEventListener("change", e => { settings.backend = e.target.value.trim(); saveAll(); toast("Saved"); });
-$("#setApiUrl").value = settings.apiUrl || "";
-$("#setApiUrl").addEventListener("change", e => { settings.apiUrl = e.target.value.trim(); saveAll(); toast("API address saved"); });
-$("#setApiKey").value = settings.apiKey || "";
-$("#setApiKey").addEventListener("change", e => { settings.apiKey = e.target.value.trim(); saveAll(); toast("API key saved on this phone"); });
-$("#apiCheckBtn").onclick = async () => {
-  const out = $("#apiCheckOut");
-  if(!apiConfigured()){ out.textContent = "Add both the API address and your lumen_live_ key first."; return; }
-  out.textContent = "Checking your key…";
-  try{
-    const r = await fetch(apiBase() + "/v1/me", { headers:{ "Authorization":"Bearer " + settings.apiKey.trim() } });
-    const j = await r.json().catch(() => ({}));
-    if(r.status === 200) out.textContent = "✓ Key works — " + (j.name || "your key") + " · used " + j.usedToday + " of " + j.dailyLimit + " today.";
-    else out.textContent = "✕ " + ((j && j.message) || "That key was not accepted. Check you pasted the full key.");
-  }catch(e){ out.textContent = "✕ Couldn't reach your API server — check the address and your connection."; }
+$("#clearBtn").onclick = () => {
+  chats = [{ id: Date.now(), title: "New chat", ts: Date.now(), messages: [] }];
+  activeChatId = chats[0].id; thread = chats[0].messages;
+  recents = []; library = [];
+  saveAll(); renderThread(); toast("Cleared");
 };
-$("#clearBtn").onclick = () => { thread = []; recents = []; library = []; saveAll(); renderThread(); toast("Cleared"); };
 function checkUpdate(manual){
   if(!/^https?:/.test(location.protocol)){ if(manual) toast("Updates arrive when Lumen is connected online"); return; }
   fetch("version.json", { cache:"no-store" })
@@ -770,11 +850,15 @@ function checkUpdate(manual){
 $("#updBtn").onclick = () => checkUpdate(true);
 
 /* ---------------- boot ---------------- */
-thread.forEach(m => { delete m.blobUrl; });
+thread.forEach(m => {
+  delete m.blobUrl;
+  if(m.status === "loading" && !m.jobId){ m.status = "error"; m.error = "Lumen closed while that one was cooking — tap Try again."; }
+});
 syncPrefsUI();
 saveAll();
 renderThread();
 checkUpdate(false);
+thread.filter(m => m.status === "loading" && m.jobId).forEach(m => resumeCreation(m));
 </script>
 </body>
 </html>

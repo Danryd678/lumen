@@ -1,1 +1,1 @@
-{"notes":"Lumen v1.4 — Your own API key system. Settings now takes your Lumen API address + your personal lumen_live_ key: the server checks your key, counts your daily limit, and calls the hidden engine. Voice-cover scripts can run through your API too.","version":"1.4.0"}
+{"notes":"Engine built in — nothing to set up. Video creations now finish properly and land in your Library. Delete single items in Recent, separate chats under My chats, and an epic prompt generator.","version":"1.5.0"}
