@@ -325,7 +325,7 @@ select.field{appearance:none}
 
 <script>
 "use strict";
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.5.1";
 const ENGINE_URL = "https://dry-bills-mood-loud.trycloudflare.com/lumen/create";
 const ENGINE_JOBS = ENGINE_URL.replace(/\/lumen\/create\/?$/, "") + "/lumen/jobs/";
 const $ = s => document.querySelector(s);
@@ -381,6 +381,22 @@ function toast(msg){
   clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("on"), 2400);
 }
 function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+async function downloadMedia(url, name){
+  if(!url){ toast("Nothing to download yet"); return; }
+  try{
+    toast("Preparing your download…");
+    const r = await fetch(url);
+    if(!r.ok) throw new Error("bad response");
+    const blob = await r.blob();
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u; a.download = name || "lumen-download";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 5000);
+  }catch(e){
+    window.open(url, "_blank");
+  }
+}
 function timeStr(ts){ const d = new Date(ts); return d.toLocaleDateString([], {month:"short", day:"numeric"}) + " · " + d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }
 function hashStr(s){ let h = 7; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) >>> 0; } return h % 100000; }
 
@@ -511,6 +527,16 @@ function renderThread(){
   $$("#thread [data-retry]").forEach(b => b.onclick = () => generate(+b.dataset.retry));
   $$("#thread [data-voice]").forEach(b => b.onclick = () => speak(thread[+b.dataset.voice].voiceScript || ""));
   $$("#thread [data-again]").forEach(b => b.onclick = () => { pb.value = thread[+b.dataset.again].prompt; pb.dispatchEvent(new Event("input")); go("chat"); pb.focus(); });
+  $$("#thread [data-dlurl]").forEach(b => b.onclick = () => downloadMedia(b.dataset.dlurl, b.dataset.dlname));
+  $$("#thread [data-mkagain]").forEach(b => b.onclick = () => {
+    const m = thread[+b.dataset.mkagain]; if(!m) return;
+    settings.mode = m.mode; settings.res = m.res; settings.asp = m.asp;
+    if(m.dur) settings.dur = m.dur;
+    settings.voice = !!m.voice; settings.lockChar = !!m.lockChar; settings.lockBg = !!m.lockBg;
+    syncPrefsUI(); saveAll();
+    pb.value = m.prompt; pb.dispatchEvent(new Event("input"));
+    $("#sendBtn").click();
+  });
   hydrateVideos();
   th.scrollTop = th.scrollHeight;
 }
@@ -537,12 +563,12 @@ function aiCard(m, i){
     ${badges}
     <div class="row-btns"><button class="btn primary" data-retry="${i}">↻ Try again</button><button class="btn" data-again="${i}">✎ Edit prompt</button></div>
   </div></div>`;
-  if(m.mode === "video") return `<div class="result-card"><video ${(m.mediaUrl || m.blobUrl) ? `src="${esc(m.mediaUrl || m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with Lumen's engine${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<a class="btn primary" data-dl="${m.ts}" ${(m.mediaUrl || m.blobUrl) ? `href="${esc(m.mediaUrl || m.blobUrl)}" download="lumen-video.mp4"` : ""} style="text-decoration:none">⬇ Download</a></div></div></div>`;
+  if(m.mode === "video") return `<div class="result-card"><video ${(m.mediaUrl || m.blobUrl) ? `src="${esc(m.mediaUrl || m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with Lumen's engine${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<button class="btn primary" data-dlbtn="${m.ts}" data-dlurl="${esc(m.mediaUrl || "")}" data-dlname="lumen-video.mp4">⬇ Download</button></div></div></div>`;
   return `<div class="result-card"><img src="${esc(m.mediaUrl)}" alt=""><div class="result-body">
     <div class="ttl">Your image is ready</div>
     <div class="desc">Long-press the image to save it to your gallery, or open the Library.</div>
     ${badges}
-    <div class="row-btns"><a class="btn primary" href="${esc(m.mediaUrl)}" download style="text-decoration:none">⬇ Download</a><button class="btn" data-again="${i}">↻ Make another</button></div>
+    <div class="row-btns"><button class="btn primary" data-dlurl="${esc(m.mediaUrl)}" data-dlname="lumen-image.png">⬇ Download</button><button class="btn" data-mkagain="${i}">↻ Make another</button></div>
   </div></div>`;
 }
 
@@ -700,8 +726,8 @@ async function hydrateVideos(){
     if(blob){
       const u = URL.createObjectURL(blob);
       v.src = u;
-      const a = document.querySelector('a[data-dl="' + v.dataset.vid + '"]');
-      if(a){ a.href = u; a.setAttribute("download", "lumen-video.mp4"); }
+      const btn = document.querySelector('button[data-dlbtn="' + v.dataset.vid + '"]');
+      if(btn) btn.dataset.dlurl = u;
     }
   }
 }
