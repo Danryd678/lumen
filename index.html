@@ -500,6 +500,12 @@ textarea.gen-prompt:focus{border-color:#3d3d5c}
 
     <div id="videoPrefs">
       <div class="hint" style="margin-top:10px">Video is created by Lumen's built-in engine.</div>
+      <div class="sec-t">Video engine</div>
+      <div class="opt-row" id="engRow">
+        <button class="opt" data-eng="gpu">Lumen engine</button>
+        <button class="opt" data-eng="magic_hour">⚡ Magic Hour — fast 480p</button>
+      </div>
+      <div class="hint" style="margin-top:8px">Magic Hour is the fast option: no GPU wait, 480p with sound, and it spends free Magic Hour credits (24 per second) — a 5s clip costs 120 credits. Pick Lumen engine for full resolution and no credits.</div>
       <div class="sec-t">Video duration</div>
       <div class="opt-row" id="durRow">
         <button class="opt" data-dur="5">5s</button>
@@ -543,7 +549,7 @@ textarea.gen-prompt:focus{border-color:#3d3d5c}
 
 <script>
 "use strict";
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.6.1";
 const ENGINE_URL = "https://dry-bills-mood-loud.trycloudflare.com/lumen/create";
 const ENGINE_JOBS = ENGINE_URL.replace(/\/lumen\/create\/?$/, "") + "/lumen/jobs/";
 const $ = s => document.querySelector(s);
@@ -553,7 +559,7 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 let settings = Object.assign({
-  mode:"image", res:"720p", asp:"16:9", dur:10,
+  mode:"image", res:"720p", asp:"16:9", dur:10, videoEngine:"gpu",
   voice:false, voiceScript:"",
   lockChar:false, charDesc:"", lockBg:false, bgDesc:""
 }, store.get("lumen.settings.v1", {}));
@@ -643,6 +649,7 @@ function syncPrefsUI(){
   $$("#resRow .opt").forEach(o => o.classList.toggle("on", o.dataset.res === settings.res));
   $$("#aspRow .opt").forEach(o => o.classList.toggle("on", o.dataset.asp === settings.asp));
   $$("#durRow .opt").forEach(o => o.classList.toggle("on", +o.dataset.dur === settings.dur));
+  $$("#engRow .opt").forEach(o => o.classList.toggle("on", o.dataset.eng === (settings.videoEngine || "gpu")));
   $("#swVoice").classList.toggle("on", settings.voice);
   $("#voiceBox").style.display = settings.voice ? "block" : "none";
   $("#voiceScript").value = settings.voiceScript || "";
@@ -654,7 +661,7 @@ function syncPrefsUI(){
   $("#bgDesc").value = settings.bgDesc || "";
   $("#videoPrefs").style.opacity = settings.mode === "video" ? "1" : ".38";
   $("#prefSummary").textContent = settings.mode === "video"
-    ? settings.res + " · " + settings.dur + "s"
+    ? settings.res + " · " + settings.dur + "s" + (settings.videoEngine === "magic_hour" ? " · Magic Hour" : "")
     : settings.res;
   $$("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === settings.mode));
 }
@@ -665,6 +672,7 @@ $$("[data-close]").forEach(el => el.onclick = () => closeSheet());
 $$("#resRow .opt").forEach(o => o.onclick = () => { settings.res = o.dataset.res; syncPrefsUI(); saveAll(); });
 $$("#aspRow .opt").forEach(o => o.onclick = () => { settings.asp = o.dataset.asp; syncPrefsUI(); saveAll(); });
 $$("#durRow .opt").forEach(o => o.onclick = () => { settings.dur = +o.dataset.dur; syncPrefsUI(); saveAll(); });
+$$("#engRow .opt").forEach(o => o.onclick = () => { settings.videoEngine = o.dataset.eng; syncPrefsUI(); saveAll(); });
 function bindSwitch(id, key, box){
   $(id).onclick = () => { settings[key] = !settings[key]; syncPrefsUI(); saveAll(); };
 }
@@ -782,7 +790,7 @@ function aiCard(m, i){
     ${badges}
     <div class="row-btns"><button class="btn primary" data-retry="${i}">↻ Try again</button><button class="btn" data-again="${i}">✎ Edit prompt</button></div>
   </div></div>`;
-  if(m.mode === "video") return `<div class="result-card"><video ${(m.mediaUrl || m.blobUrl) ? `src="${esc(m.mediaUrl || m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">Made with Lumen's engine${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<button class="btn primary" data-dlbtn="${m.ts}" data-dlurl="${esc(m.mediaUrl || "")}" data-dlname="lumen-video.mp4">⬇ Download</button></div></div></div>`;
+  if(m.mode === "video") return `<div class="result-card"><video ${(m.mediaUrl || m.blobUrl) ? `src="${esc(m.mediaUrl || m.blobUrl)}"` : ""} data-vid="${m.ts}" controls playsinline preload="metadata"></video><div class="result-body"><div class="ttl">Your video is ready</div><div class="desc">${m.provider === "magic_hour" ? "Made with Magic Hour (480p)" : "Made with Lumen's engine"}${m.actualDur ? ` · clip length ${m.actualDur}s` : ""}. Download it to keep it in your gallery.</div>${badges}${voiceLine}<div class="row-btns">${m.voice && m.voiceScript ? `<button class="btn" data-voice="${i}">▶ Play voice cover</button>` : ""}<button class="btn primary" data-dlbtn="${m.ts}" data-dlurl="${esc(m.mediaUrl || "")}" data-dlname="lumen-video.mp4">⬇ Download</button></div></div></div>`;
   return `<div class="result-card"><img src="${esc(m.mediaUrl)}" data-openimg="${i}" alt=""><div class="result-body">
     <div class="ttl">Your image is ready</div>
     <div class="desc">Long-press the image to save it to your gallery, or open the Library.</div>
@@ -867,6 +875,7 @@ async function createViaEngine(body, m){
 function completeCreation(m, j){
   m.status = "done"; m.mediaUrl = j.imageUrl || j.videoUrl || j.url;
   if(j.duration) m.actualDur = Math.round(j.duration);
+  if(j.provider || j.engine) m.provider = j.provider || j.engine;
   delete m.jobId; delete m.error;
   if(m.mode === "image"){
     library.unshift({ url: m.mediaUrl, prompt: m.prompt, ts: m.ts, kind:"image" });
@@ -905,7 +914,7 @@ async function generate(i){
         m.voiceAuto = true;
         saveAll();
       }
-      const j = await createViaEngine({ type:"video", prompt: finalPrompt, duration: m.dur, resolution: m.res, aspect: m.asp, voiceScript: m.voiceScript }, m);
+      const j = await createViaEngine({ type:"video", prompt: finalPrompt, duration: m.dur, resolution: m.res, aspect: m.asp, voiceScript: m.voiceScript, engine: settings.videoEngine || "gpu" }, m);
       completeCreation(m, j);
     }
   }catch(e){
